@@ -1,6 +1,10 @@
 const readLine = require("readline");
 const fs = require("node:fs");
 
+const PATH_OUTPUT_SUBTITLE_FILE = "C:/Users/rman/Videos/Breaking Bad/subtitle";
+const PATH_SUB_ENG = "./subtitle/sub-eng.srt";
+const PATH_SUB_IND = "./subtitle/sub-indo.srt";
+
 // Input Output
 const rl = readLine.createInterface({
   input: process.stdin,
@@ -60,16 +64,44 @@ const mergeSubtitles = (subEnglish, subIndonesia) => {
     const startTimeEng = convertToSeconds(subEng.startTime);
     const endTimeEng = convertToSeconds(subEng.endTime);
 
-    const matchSub = subIndonesia.filter((subIndo) => {
+    const matchSubIndo = subIndonesia.filter((subIndo) => {
       const startTimeInd = convertToSeconds(subIndo.startTime);
       const endTimeInd = convertToSeconds(subIndo.endTime);
-      return !(endTimeInd < startTimeEng || startTimeInd > endTimeEng);
+      return !(startTimeInd > endTimeEng || startTimeEng > endTimeInd);
     });
 
-    const textIndonesia = matchSub.map((sub) => sub.text);
+    // Contoh penggunaan:
+    // const subtitleEngCth = [
+    //     { index: 1, startTime: "00:01:09,262", endTime: "00:01:12,807", text: "Oh, my God. Christ!" },
+    //     { index: 2, startTime: "00:01:16,018", endTime: "00:01:18,688", text: "Shit." },
+    //   ];
+
+    //   const subtitleIndCth = [
+    //     { index: 1, startTime: "00:01:09,151", endTime: "00:01:11,028", text: "Oh, Tuhan." },
+    //     { index: 2, startTime: "00:01:11,195", endTime: "00:01:12,780", text: "Sial!" },
+    //     { index: 3, startTime: "00:01:15,992", endTime: "00:01:17,827", text: "Berengsek." },
+    //   ];
+
+    // 1
+    // 00:01:09,262 --> 00:01:12,807
+    // Oh, my God. Christ!
+    // Oh, Tuhan.
+    // Sial!
+
+    // 2
+    // 00:01:16,018 --> 00:01:18,688
+    // Shit.
+    // Berengsek.
+
+    const textIndonesia = matchSubIndo.map((subIndo) => subIndo.text);
+
     const mergedText = [
       `<font size="40"><b>${subEng.text}</b></font>`,
-      `<font size="20">${textIndonesia}</font>`,
+      textIndonesia.length > 0
+        ? `<font size="20">${textIndonesia
+            .toString()
+            .replaceAll("\n", " ")}</font>`
+        : "",
     ].join("\n");
 
     const combinedSubtitle = `${subEng.id}\n${subEng.startTime} --> ${subEng.endTime}\n${mergedText}\n`;
@@ -81,19 +113,19 @@ const mergeSubtitles = (subEnglish, subIndonesia) => {
 // create new subtitle file
 const createdSubtitleFile = (nameSubtitle, subtitles) => {
   fs.writeFileSync(
-    `./subtitle/${nameSubtitle}.srt`,
+    `${PATH_OUTPUT_SUBTITLE_FILE}/${nameSubtitle}.srt`,
     subtitles.join("\n\n"),
     "utf-8"
   );
 
   console.log(
-    `Subtitle berhasil digabung dan disimpan sebagai '${nameSubtitle}.srt'`
+    `Subtitle berhasil disimpan di Direktori ${PATH_OUTPUT_SUBTITLE_FILE}/${nameSubtitle}.srt`
   );
 };
 
 const askQuestion = (question) => {
   return new Promise((resolve) => {
-    rl.question(question, (answer) => {
+    rl.question(`${question}\n`, (answer) => {
       resolve(answer.trim());
     });
   });
@@ -102,18 +134,25 @@ const askQuestion = (question) => {
 // Main
 (async () => {
   try {
-    const subEnglish = await askQuestion("Masukan Path Sub[English] : ");
+    console.log("⚠ Penggunaan Opsi Mengabaikan ⚠ ");
+    console.log("Simpan Subtitle di Folder subtitle Dengan nama file");
+    console.log("sub-indo.srt dan sub-eng.srt \n");
+    console.log("⚠ Enter untuk Mengabaikan ⚠ \n");
+
+    let subEnglish = await askQuestion("Masukan Path Sub[English] :");
+    if (subEnglish === "") subEnglish = PATH_SUB_ENG;
+
+    let subIndo = await askQuestion("Masukan Path Sub[Indo] :");
+    if (subIndo === "") subIndo = PATH_SUB_IND;
+
+    let nameSubtitle = await askQuestion("Masukan Nama Sub Baru :");
+    if (nameSubtitle === "")
+      nameSubtitle = `merged-subtitle-${new Date().getTime()}`;
+
     const subtitleEnglish = await readFile(subEnglish);
-
-    const subIndo = await askQuestion("Masukan Path Sub[Indo] : ");
     const subtitleIndonesia = await readFile(subIndo);
-
     const mergedSubtitles = mergeSubtitles(subtitleEnglish, subtitleIndonesia);
-
-    let nameSubtitle = await askQuestion("Masukan Nama Subtitle Baru : ");
-    if (nameSubtitle === "") nameSubtitle = "merged-subtitle";
-
-    createdSubtitleFile(nameSubtitle.replace(" ", "-"), mergedSubtitles);
+    createdSubtitleFile(nameSubtitle.replaceAll(" ", "-"), mergedSubtitles);
 
     rl.close();
   } catch (error) {
