@@ -1,12 +1,14 @@
-const fs = require("node:fs");
 const readLine = require("readline");
+const fs = require("node:fs");
 
+// Input Output
 const rl = readLine.createInterface({
   input: process.stdin,
   output: process.stdout,
 });
 
-const getArrayObjectData = (subtitles) => {
+// Parse Subtitles
+const parseSubtitle = (subtitles) => {
   const filterSubs = subtitles.replaceAll("\r", "");
   const arrObjData = filterSubs
     .split("\n\n")
@@ -26,7 +28,8 @@ const getArrayObjectData = (subtitles) => {
   return arrObjData;
 };
 
-async function rFile(path) {
+// Read file stream
+async function readFile(path) {
   let results = [];
 
   const sub = fs.createReadStream(path, {
@@ -34,7 +37,7 @@ async function rFile(path) {
   });
 
   await sub.forEach((s) => {
-    results = getArrayObjectData(s);
+    results = parseSubtitle(s);
   });
 
   return results;
@@ -51,7 +54,8 @@ const convertToSeconds = (time) => {
   );
 };
 
-const mergedSubtitle = (subEnglish, subIndonesia) => {
+// Merge 2 Subtitles
+const mergeSubtitles = (subEnglish, subIndonesia) => {
   return subEnglish.map((subEng) => {
     const startTimeEng = convertToSeconds(subEng.startTime);
     const endTimeEng = convertToSeconds(subEng.endTime);
@@ -62,7 +66,7 @@ const mergedSubtitle = (subEnglish, subIndonesia) => {
       return !(endTimeInd < startTimeEng || startTimeInd > endTimeEng);
     });
 
-    const textIndonesia = matchSub.map((sub) => sub.text).toString();
+    const textIndonesia = matchSub.map((sub) => sub.text);
     const mergedText = [
       `<font size="40"><b>${subEng.text}</b></font>`,
       `<font size="20">${textIndonesia}</font>`,
@@ -74,7 +78,8 @@ const mergedSubtitle = (subEnglish, subIndonesia) => {
   });
 };
 
-const createdSubtitileFile = (nameSubtitle, subtitles) => {
+// create new subtitle file
+const createdSubtitleFile = (nameSubtitle, subtitles) => {
   fs.writeFileSync(
     `./subtitle/${nameSubtitle}.srt`,
     subtitles.join("\n\n"),
@@ -82,7 +87,7 @@ const createdSubtitileFile = (nameSubtitle, subtitles) => {
   );
 
   console.log(
-    "Subtitle berhasil digabung dan disimpan sebagai 'merged-subtitle.srt'"
+    `Subtitle berhasil digabung dan disimpan sebagai '${nameSubtitle}.srt'`
   );
 };
 
@@ -94,20 +99,21 @@ const askQuestion = (question) => {
   });
 };
 
+// Main
 (async () => {
   try {
-    const subEnglish = await askQuestion("Masukan path sub english : ");
-    const subtitleEnglish = await rFile(subEnglish);
+    const subEnglish = await askQuestion("Masukan Path Sub[English] : ");
+    const subtitleEnglish = await readFile(subEnglish);
 
-    const subIndo = await askQuestion("Masukan path sub indo : ");
-    const subtitleIndonesia = await rFile(subIndo);
+    const subIndo = await askQuestion("Masukan Path Sub[Indo] : ");
+    const subtitleIndonesia = await readFile(subIndo);
 
-    const mergedSubtitles = mergedSubtitle(subtitleEnglish, subtitleIndonesia);
+    const mergedSubtitles = mergeSubtitles(subtitleEnglish, subtitleIndonesia);
 
-    let nameSubtitle = await askQuestion("Masukan nama subtitle baru : ");
+    let nameSubtitle = await askQuestion("Masukan Nama Subtitle Baru : ");
     if (nameSubtitle === "") nameSubtitle = "merged-subtitle";
 
-    createdSubtitileFile(nameSubtitle.replace(" ", "-"), mergedSubtitles);
+    createdSubtitleFile(nameSubtitle.replace(" ", "-"), mergedSubtitles);
 
     rl.close();
   } catch (error) {
