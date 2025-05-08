@@ -1639,7 +1639,7 @@ pemecah Griffin...
 370
 00:32:43,864 --> 00:32:47,785
 <i>...itu botol Erlenmeyer.
-tapi piï¿½ce de rï¿½sistance...</i>
+tapi pièce de résistance...</i>
 
 371
 00:32:47,993 --> 00:32:52,623
@@ -2614,3 +2614,4 @@ Walt...
 588
 00:57:07,703 --> 00:57:12,166
 Oh, Walt, itu kau?
+

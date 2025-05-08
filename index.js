@@ -1,9 +1,31 @@
 const readLine = require("readline");
 const fs = require("node:fs");
 
-const PATH_OUTPUT_SUBTITLE_FILE = "C:/Users/rman/Videos/Breaking Bad/subtitle";
-const PATH_SUB_ENG = "./subtitle/sub-eng.srt";
-const PATH_SUB_IND = "./subtitle/sub-indo.srt";
+// Contoh penggunaan:
+// const subtitleEngCth = [
+//     { index: 1, startTime: "00:01:09,262", endTime: "00:01:12,807", text: "Oh, my God. Christ!" },
+//     { index: 2, startTime: "00:01:16,018", endTime: "00:01:18,688", text: "Shit." },
+//   ];
+
+//   const subtitleIndCth = [
+//     { index: 1, startTime: "00:01:09,151", endTime: "00:01:11,028", text: "Oh, Tuhan." },
+//     { index: 2, startTime: "00:01:11,195", endTime: "00:01:12,780", text: "Sial!" },
+//     { index: 3, startTime: "00:01:15,992", endTime: "00:01:17,827", text: "Berengsek." },
+//   ];
+
+// 1
+// 00:01:09,262 --> 00:01:12,807
+// Oh, my God. Christ!
+// Oh, Tuhan.
+// Sial!
+
+// 2
+// 00:01:16,018 --> 00:01:18,688
+// Shit.
+// Berengsek.
+
+// const DEFAULT_PATH_OUTPUT_SUB = "C:/Users/rman/Videos/Breaking Bad/subtitle";
+const DEFAULT_PATH_OUTPUT_SUB = "./subtitle";
 
 // Input Output
 const rl = readLine.createInterface({
@@ -24,7 +46,7 @@ const parseSubtitle = (subtitles) => {
         id: id,
         startTime: time?.split(" --> ")[0],
         endTime: time?.split(" --> ")[1],
-        text: rest.toString().replace(",,", " "),
+        text: rest.join(" "),
       };
     })
     .filter((sub) => sub !== null);
@@ -70,39 +92,14 @@ const mergeSubtitles = (subEnglish, subIndonesia) => {
       return !(startTimeInd > endTimeEng || startTimeEng > endTimeInd);
     });
 
-    // Contoh penggunaan:
-    // const subtitleEngCth = [
-    //     { index: 1, startTime: "00:01:09,262", endTime: "00:01:12,807", text: "Oh, my God. Christ!" },
-    //     { index: 2, startTime: "00:01:16,018", endTime: "00:01:18,688", text: "Shit." },
-    //   ];
-
-    //   const subtitleIndCth = [
-    //     { index: 1, startTime: "00:01:09,151", endTime: "00:01:11,028", text: "Oh, Tuhan." },
-    //     { index: 2, startTime: "00:01:11,195", endTime: "00:01:12,780", text: "Sial!" },
-    //     { index: 3, startTime: "00:01:15,992", endTime: "00:01:17,827", text: "Berengsek." },
-    //   ];
-
-    // 1
-    // 00:01:09,262 --> 00:01:12,807
-    // Oh, my God. Christ!
-    // Oh, Tuhan.
-    // Sial!
-
-    // 2
-    // 00:01:16,018 --> 00:01:18,688
-    // Shit.
-    // Berengsek.
-
-    const textIndonesia = matchSubIndo.map((subIndo) => subIndo.text);
+    const lastTextIndo = matchSubIndo.at(-1)?.text?.replaceAll("\n", " ");
 
     const mergedText = [
       `<font size="40"><b>${subEng.text}</b></font>`,
-      textIndonesia.length > 0
-        ? `<font size="20">${textIndonesia
-            .toString()
-            .replaceAll("\n", " ")}</font>`
-        : "",
-    ].join("\n");
+      lastTextIndo && `<font size="20">${lastTextIndo}</font>`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const combinedSubtitle = `${subEng.id}\n${subEng.startTime} --> ${subEng.endTime}\n${mergedText}\n`;
 
@@ -111,15 +108,17 @@ const mergeSubtitles = (subEnglish, subIndonesia) => {
 };
 
 // create new subtitle file
-const createdSubtitleFile = (nameSubtitle, subtitles) => {
+const createdSubtitleFile = (nameSubtitle, subtitles, pathOutput) => {
+  const path = pathOutput !== null ? pathOutput : DEFAULT_PATH_OUTPUT_SUB;
+
   fs.writeFileSync(
-    `${PATH_OUTPUT_SUBTITLE_FILE}/${nameSubtitle}.srt`,
+    `${path}/${nameSubtitle}.srt`,
     subtitles.join("\n\n"),
     "utf-8"
   );
 
   console.log(
-    `Subtitle berhasil disimpan di Direktori ${PATH_OUTPUT_SUBTITLE_FILE}/${nameSubtitle}.srt`
+    `Berhasil Disimpan di Direktori ${path} dengan nama '${nameSubtitle}.srt'`
   );
 };
 
@@ -131,28 +130,64 @@ const askQuestion = (question) => {
   });
 };
 
+async function getSubtitlePaths(folderPath = null) {
+  if (folderPath) {
+    return {
+      subEng: `${folderPath}/sub-eng.srt`,
+      subIndo: `${folderPath}/sub-indo.srt`,
+    };
+  } else {
+    return {
+      subEng: await askQuestion("Masukan Path Sub[English]: "),
+      subIndo: await askQuestion("Masukan Path Sub[Indo]: "),
+    };
+  }
+}
+
+async function processSubtitle(subtitlePaths, folderPath = null) {
+  let nameSubtitle = await askQuestion(
+    "[Enter untuk mengabaikan] Masukan Nama Sub Baru: "
+  );
+
+  if (!nameSubtitle) {
+    nameSubtitle = `merged-subtitle-${Date.now()}`;
+  }
+
+  const subtitleEnglish = await readFile(subtitlePaths.subEng);
+  const subtitleIndonesia = await readFile(subtitlePaths.subIndo);
+  const mergedSubtitles = mergeSubtitles(subtitleEnglish, subtitleIndonesia);
+
+  createdSubtitleFile(
+    nameSubtitle.replaceAll(" ", "-"),
+    mergedSubtitles,
+    folderPath || null
+  );
+}
+
 // Main
 (async () => {
   try {
-    console.log("⚠ Penggunaan Opsi Mengabaikan ⚠ ");
-    console.log("Simpan Subtitle di Folder subtitle Dengan nama file");
-    console.log("sub-indo.srt dan sub-eng.srt \n");
-    console.log("⚠ Enter untuk Mengabaikan ⚠ \n");
+    console.log("Pilih Opsi ");
+    console.log("1. Input Path Folder nya Saja");
+    console.log("2. Input Path Dari File Subtitle");
 
-    let subEnglish = await askQuestion("Masukan Path Sub[English] :");
-    if (subEnglish === "") subEnglish = PATH_SUB_ENG;
+    const choice = await askQuestion("Masukan Pilihan (1 atau 2)");
 
-    let subIndo = await askQuestion("Masukan Path Sub[Indo] :");
-    if (subIndo === "") subIndo = PATH_SUB_IND;
+    if (choice === "1") {
+      console.log("Pastikan didalam folder tersebut terdapat 2 File");
+      console.log("- sub-indo.srt\n- sub-eng.srt\n");
 
-    let nameSubtitle = await askQuestion("Masukan Nama Sub Baru :");
-    if (nameSubtitle === "")
-      nameSubtitle = `merged-subtitle-${new Date().getTime()}`;
+      const folderPath = await askQuestion("Masukan Path Folder Sub :");
+      const subtitlePaths = await getSubtitlePaths(folderPath);
 
-    const subtitleEnglish = await readFile(subEnglish);
-    const subtitleIndonesia = await readFile(subIndo);
-    const mergedSubtitles = mergeSubtitles(subtitleEnglish, subtitleIndonesia);
-    createdSubtitleFile(nameSubtitle.replaceAll(" ", "-"), mergedSubtitles);
+      await processSubtitle(subtitlePaths, folderPath);
+    } else if (choice === "2") {
+      const subtitlePaths = await getSubtitlePaths();
+
+      await processSubtitle(subtitlePaths);
+    } else {
+      console.log("Pilihan tidak valid! Silakan masukkan 1 atau 2.");
+    }
 
     rl.close();
   } catch (error) {
