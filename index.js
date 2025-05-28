@@ -35,7 +35,7 @@ const rl = readLine.createInterface({
 
 // Parse Subtitles
 const parseSubtitle = (subtitles) => {
-  const filterSubs = subtitles.replaceAll("\r", "");
+  const filterSubs = subtitles.replaceAll(/\r|\{\\an8}/g, "");
   const arrObjData = filterSubs
     .split("\n\n")
     .map((subtitle) => {
@@ -92,7 +92,10 @@ const mergeSubtitles = (subEnglish, subIndonesia) => {
       return !(startTimeInd > endTimeEng || startTimeEng > endTimeInd);
     });
 
-    const lastTextIndo = matchSubIndo.at(-1)?.text?.replaceAll("\n", " ");
+    const lastTextIndo = matchSubIndo
+      .map((sub) => sub.text)
+      .join(" ")
+      .replaceAll("\n", " ");
 
     const mergedText = [
       `<font size="40"><b>${subEng.text}</b></font>`,
